@@ -11,20 +11,16 @@ export default {
     name: "HelloWorld",
     mounted() {
         this.getChartData()
-        const this_vue = this;
-
-        // if(window.localStorage.getItem("chart_settings")) //todo: do sprawdzenia w bardziej zaawansowanym stanie
-        //     this_vue.saved_chart = JSON.parse(window.localStorage.getItem("chart_settings"));
-
-        this_vue.feed = this_vue.createFeed();
+        const that = this;
+        that.feed = this.createFeed();
 
         TradingView.onready(function (configurationData) {
-            this_vue.chart = window.tvWidget = new TradingView.widget({
+            that.chart = window.tvWidget = new TradingView.widget({
                 fullscreen: false,
                 autosize: true,
-                symbol: this_vue.currency1 + ":" + this_vue.currency2,
+                symbol: that.currency1 + ":" + that.currency2,
                 container_id: "chart_container",
-                datafeed: this_vue.feed,
+                datafeed: that.feed,
                 library_path: "static/custom_scripts/chart_main/",
                 locale: "en",
                 timezone: 'Etc/UTC', //todo: ustawianie timezone'a po strefie usera
@@ -36,7 +32,7 @@ export default {
                 interval: '60',
                 // timeframe:'',//todo: na koncu
                 toolbar_bg: "#20334d",
-                // saved_data: this_vue.savedData,
+                // saved_data: that.savedData,
                 allow_symbol_change: true,
                 time_frames: [
                     { text: "1y", resolution: "1W" },
@@ -187,11 +183,11 @@ export default {
                 custom_css_url: 'chart.css'
 
             });
-
-
-
-
         });
+
+        setInterval(() => {
+            this.getChartData()
+        }, 1000)
 
 
 
@@ -204,9 +200,10 @@ export default {
 
         getChartData() {
             let url = '/api/v5/market/ticker?instId=BTC-USD-SWAP'
-            let url1 = '/api/v5/market/candles?instId=BTC-USD-SWAP'
+            let url1 = '/api/v5/market/candles?instId=BTC-USD-SWAP&limit=300'
             this.$service.get(url1)
                 .then(response => {
+                    this.bars = []
                     response.data.forEach((order => {
                         this.bars.unshift({
                             close: Number(order[4]),
@@ -217,22 +214,23 @@ export default {
                             time: Number(order[0]),
                         })
                     }))
+                    this.changePair()
                 }, err => {
                     this.log('err', err);
                 });
         },
         changePair() {
-            let this_vue = this;
+            let that = this;
             if (this.chart && this.feed) {
                 this.feed._fireEvent('pair_change');
                 this.chart.activeChart().resetData();
                 this.chart.activeChart().setSymbol(this.currency1 + ":" + this.currency2, function () {
-                    console.log("GOWNO :: proba zmiany", this_vue.currency1, this_vue.currency2);
+                    console.log("GOWNO :: proba zmiany", that.currency1, that.currency2);
                 });
             }
         },
         createFeed: function () {
-            let this_vue = this;
+            let that = this;
             let Datafeed = {};
 
             Datafeed.DataPulseUpdater = function (datafeed, updateFrequency) {
@@ -419,20 +417,20 @@ export default {
                 Promise.resolve().then(() => {
 
                     function adjustScale() {
-                        if (this_vue.last_price > 1000)
+                        if (that.last_price > 1000)
                             return 100;
                         else
                             return 100000000;
                     }
 
-                    this._logMessage("GOWNO :: onResultReady inject " + this_vue.currency1 + ":" + this_vue.currency2);
+                    this._logMessage("GOWNO :: onResultReady inject " + that.currency1 + ":" + that.currency2);
                     onSymbolResolvedCallback({
-                        "name": this_vue.currency1 + ":" + this_vue.currency2,
+                        "name": that.currency1 + ":" + that.currency2,
                         "timezone": "Europe/Warsaw",
                         "pricescale": adjustScale(),
                         "minmov": 1,
                         "minmov2": 0,
-                        "ticker": this_vue.currency1 + ":" + this_vue.currency2,
+                        "ticker": that.currency1 + ":" + that.currency2,
                         "description": "",
                         "session": "24x7",
                         "type": "bitcoin",
@@ -456,7 +454,7 @@ export default {
             };
 
             Datafeed.Container.prototype.subscribeBars = function (symbolInfo, resolution, onRealtimeCallback, listenerGUID, onResetCacheNeededCallback) {
-                this_vue.bars.forEach(function (bar) { // in subscribeBars
+                that.bars.forEach(function (bar) { // in subscribeBars
                     onRealtimeCallback(bar)
                 });
                 this.on('pair_change', function () {
@@ -487,7 +485,7 @@ export default {
             this.changePair();
         },
     },
-    data: function () {
+    data() {
         return {
             currency1: 'USD',
             currency2: 'BTC',
@@ -496,66 +494,7 @@ export default {
             feed: null,
             last_price: 1234.2365,
             bars: [],
-            // bars: [
-            //      {
-            //          time:1508313600000,
-            //          close:42.1,
-            //          open:41.0,
-            //          high:43.0,
-            //          low:40.4,
-            //          volume:12000
-            //      }, {
-            //          time:1508317200000,
-            //          close:43.4,
-            //          open:42.9,
-            //          high:44.1,
-            //          low:42.1,
-            //          volume:18500
-            //      }, {
-            //          time:1508320800000,
-            //          close:44.3,
-            //          open:43.7,
-            //          high:44.8,
-            //          low:42.8,
-            //          volume:24000
-            //      }, {
-            //          time:1508324400000,
-            //          close:42.8,
-            //          open:44.5,
-            //          high:44.5,
-            //          low:42.3,
-            //          volume:45000
-            //      },
-            //      {
-            //          time:1508413600000,
-            //          close:40.1,
-            //          open:38.0,
-            //          high:40.0,
-            //          low:40.4,
-            //          volume:10000
-            //      }, {
-            //          time:1508317200000,
-            //          close:43.4,
-            //          open:42.9,
-            //          high:44.1,
-            //          low:42.1,
-            //          volume:18500
-            //      }, {
-            //          time:1508320800000,
-            //          close:44.3,
-            //          open:43.7,
-            //          high:44.8,
-            //          low:42.8,
-            //          volume:24000
-            //      }, {
-            //          time:1508324400000,
-            //          close:42.8,
-            //          open:44.5,
-            //          high:44.5,
-            //          low:42.3,
-            //          volume:45000
-            //      }
-            // ]
+            time: null
         }
     }
 
