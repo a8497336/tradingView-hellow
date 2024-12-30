@@ -198,26 +198,39 @@ export default {
          *   获取 K 线数据  getChartData()
          */
 
-        getChartData() {
+        getChartData(limit = 300) {
             let url = '/api/v5/market/ticker?instId=BTC-USD-SWAP'
-            let url1 = '/api/v5/market/candles?instId=BTC-USD-SWAP&limit=300'
+            let url1 = '/api/v5/market/candles?instId=BTC-USD-SWAP&limit=' + limit
             this.$service.get(url1)
                 .then(response => {
                     this.bars = []
                     response.data.forEach((order => {
+                        // const time = this.changeTime(order[0])
+                        // console.log(order[0],time, 'this.bars')
                         this.bars.unshift({
                             close: Number(order[4]),
                             open: Number(order[1]),
                             high: Number(order[2]),
                             low: Number(order[3]),
                             volume: Number(order[5]),
-                            time: Number(order[0]),
+                            time: Number(order[0]) + (8 * 60 * 60 * 1000),
                         })
                     }))
+                    // console.log(this.bars, 'this.bars')
                     this.changePair()
                 }, err => {
                     this.log('err', err);
                 });
+        },
+        changeTime(time) {
+            let timestamp = Date.now(time);
+            // 增加8小时
+            timestamp += 8 * 60 * 60 * 1000;
+            // 如果需要将新时间戳转换为Date对象
+            let date = timestamp;
+            return date
+
+
         },
         changePair() {
             let that = this;
