@@ -22,8 +22,9 @@ export default {
                 container_id: "chart_container",
                 datafeed: that.feed,
                 library_path: "static/custom_scripts/chart_main/",
-                locale: "en",
-                timezone: 'Etc/UTC', //todo: ustawianie timezone'a po strefie usera
+                // locale: "en",
+                locale: "zh",
+                timezone: "Asia/Shanghai", //todo: ustawianie timezone'a po strefie usera
                 charts_storage_api_version: "1.1",
                 client_id: 'tradingview.com',
                 user_id: 'public_user_id',
@@ -184,40 +185,69 @@ export default {
 
             });
         });
-
-        setInterval(() => {
-            this.getChartData()
+        this.initSockit()
+        setTimeout(() => {
+            this.sendMessage()
         }, 1000)
-
-
-
     },
     methods: {
+        initSockit() {
+            let that = this;
+            // 创建WebSocket连接
+            this.socket = new WebSocket('wss://ws.okx.com/ws/v5/business');
+            this.socket.addEventListener('open', () => {
+                console.log('WebSocket连接已打开');
+            });
+            this.socket.addEventListener('message', (event) => {
+                const message = JSON.parse(event.data);
+                // this.bars.unshift(...message.data);
+                const order = message.data[0]
+                console.log(order, 'order')
+                that.onRealtimeCallback({
+                    close: Number(order[4]),
+                    open: Number(order[1]),
+                    high: Number(order[2]),
+                    low: Number(order[3]),
+                    volume: Number(order[5]),
+                    time: Number(order[0]),
+                });
+
+            });
+        },
+        sendMessage() {
+            const message = {
+                "op": "subscribe",
+                "args": [{
+                    "channel": "candle1s",
+                    "instId": "BTC-USDT"
+                }]
+            }
+                ;
+            this.socket.send(JSON.stringify(message));
+            this.newMessage = '';
+        },
 
         /**
          *   获取 K 线数据  getChartData()
          */
 
         getChartData(limit = 300) {
-            let url = '/api/v5/market/ticker?instId=BTC-USD-SWAP'
-            let url1 = '/api/v5/market/candles?instId=BTC-USD-SWAP&limit=' + limit
-            this.$service.get(url1)
+            let url = '/api/v5/market/candles?instId=BTC-USD-SWAP&limit=' + limit
+            this.$service.get(url)
                 .then(response => {
                     this.bars = []
                     response.data.forEach((order => {
-                        // const time = this.changeTime(order[0])
-                        // console.log(order[0],time, 'this.bars')
                         this.bars.unshift({
                             close: Number(order[4]),
                             open: Number(order[1]),
                             high: Number(order[2]),
                             low: Number(order[3]),
                             volume: Number(order[5]),
-                            time: Number(order[0]) + (8 * 60 * 60 * 1000),
+                            time: Number(order[0]),
                         })
                     }))
                     // console.log(this.bars, 'this.bars')
-                    this.changePair()
+                    // this.changePair()
                 }, err => {
                     this.log('err', err);
                 });
@@ -242,7 +272,7 @@ export default {
                 });
             }
         },
-        createFeed: function () {
+        createFeed() {
             let that = this;
             let Datafeed = {};
 
@@ -439,7 +469,7 @@ export default {
                     this._logMessage("GOWNO :: onResultReady inject " + that.currency1 + ":" + that.currency2);
                     onSymbolResolvedCallback({
                         "name": that.currency1 + ":" + that.currency2,
-                        "timezone": "Europe/Warsaw",
+                        "timezone": "Asia/Shanghai",
                         "pricescale": adjustScale(),
                         "minmov": 1,
                         "minmov2": 0,
@@ -469,6 +499,7 @@ export default {
             Datafeed.Container.prototype.subscribeBars = function (symbolInfo, resolution, onRealtimeCallback, listenerGUID, onResetCacheNeededCallback) {
                 that.bars.forEach(function (bar) { // in subscribeBars
                     onRealtimeCallback(bar)
+                    that.onRealtimeCallback = onRealtimeCallback;
                 });
                 this.on('pair_change', function () {
                     onResetCacheNeededCallback();
@@ -507,7 +538,7 @@ export default {
             feed: null,
             last_price: 1234.2365,
             bars: [],
-            time: null
+            socket: null
         }
     }
 
